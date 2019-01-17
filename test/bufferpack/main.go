@@ -48,7 +48,7 @@ func testCreateByte() {
 	var val byte = 1
 	result, err := buffer.Create(conf, val)
 
-	fmt.Printf("write byte flag = %t, result = %x\n", err, result)
+	fmt.Printf("write byte error = %T, result = %x\n", err, result)
 }
 func testCreateInt16() {
 	var confJSON = `{"type":1, "prop": [{"type": 2, "name": "name"}]}`
@@ -210,21 +210,52 @@ func testCreateArray() {
 
 	fmt.Printf("write array err = %v, result = %x\n", err, result)
 }
+
+func testCreateArrayObject() {
+	var confJSON = `{"type": 102, "prop": [{
+		"type": 0,
+		"name": "id"
+	}, {
+		"type": 4,
+		"name": "name"
+	}]}`
+	var conf interface{}
+	err := json.Unmarshal([]byte(confJSON), &conf)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	obj := []map[string]interface{}{
+		map[string]interface{}{
+			"id":   1,
+			"name": "one",
+		},
+		map[string]interface{}{
+			"id":   2,
+			"name": "two",
+		},
+	}
+	result, err := buffer.Create(conf, obj)
+
+	fmt.Printf("write arrayObject err = %v, result = %x\n", err, result)
+}
 func main() {
 
-	// testCreateInt16()
+	testCreateInt16()
 
-	// testCreateInt()
+	testCreateInt()
 
-	// testCreateIntUseInt16()
+	testCreateIntUseInt16()
 
-	// testCreateLong()
+	testCreateLong()
 
-	// testCreateFloat()
-	// testCreateDouble()
-	// testCreateByte()
-	// testCreateBool()
-	// testCreateString()
-	// testCreateObject()
+	testCreateFloat()
+	testCreateDouble()
+	testCreateByte()
+	testCreateBool()
+	testCreateString()
+	testCreateObject()
 	testCreateArray()
+
+	testCreateArrayObject()
 }

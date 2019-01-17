@@ -1,0 +1,16 @@
+{
+    "type": 100,
+    "prop": [
+        {
+            "type": 101,
+            "name": "ids",
+            "prop": {
+                "type": 1
+            }
+        },
+        {
+            "type": 7,
+            "name": "is_captain"
+        }
+    ]
+}
