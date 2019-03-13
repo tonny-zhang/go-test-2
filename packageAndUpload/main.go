@@ -19,6 +19,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+func printErrAndWaitExit(err interface{}) {
+	log.Fatal(err)
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("\n\n回车退出...")
+	reader.ReadByte()
+	os.Exit(0)
+}
 func walkDir(dirPath string) (files []string, err error) {
 	files = make([]string, 0, 30)
 
@@ -190,8 +197,7 @@ func upload(sourceFile string, conf serverConfig) {
 
 			srcFile, err := os.Open(sourceFile)
 			if err != nil {
-				log.Fatal(err)
-				os.Exit(0)
+				printErrAndWaitExit(err)
 			} else {
 				defer srcFile.Close()
 
@@ -200,27 +206,23 @@ func upload(sourceFile string, conf serverConfig) {
 
 				dstFile, errUpload := sftpClient.Create(pathRemote)
 				if nil != errUpload {
-					log.Fatal(err)
-					os.Exit(0)
+					printErrAndWaitExit(err)
 				} else {
 					defer dstFile.Close()
 
 					ff, err := ioutil.ReadAll(srcFile)
 					if err != nil {
-						log.Fatal(err)
-						os.Exit(0)
+						printErrAndWaitExit(err)
 					}
 					dstFile.Write(ff)
 					fmt.Printf("[%s]上传到[%s@%s%s]\n", sourceFile, conf.username, conf.host, pathRemote)
 				}
 			}
 		} else {
-			log.Fatal(err)
-			os.Exit(0)
+			printErrAndWaitExit(err)
 		}
 	} else {
-		log.Fatal(err)
-		os.Exit(0)
+		printErrAndWaitExit(err)
 	}
 }
 
@@ -246,20 +248,17 @@ func deal(confDir string) {
 	confContent, _ := ioutil.ReadFile(confDir)
 	err := json.Unmarshal(confContent, &conf)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(0)
+		printErrAndWaitExit(err)
 	}
 
 	dirPath := conf.DirLocal
 	dirPathTmp := conf.DirLocalTmp
 
 	if !isFileExists(dirPath) {
-		log.Fatal(fmt.Sprintf("[%s]不存在", dirPath))
-		os.Exit(0)
+		printErrAndWaitExit(fmt.Sprintf("[%s]不存在", dirPath))
 	}
 	if !isFileExists(dirPathTmp) {
-		log.Fatal(fmt.Sprintf("[%s]不存在", dirPathTmp))
-		os.Exit(0)
+		printErrAndWaitExit(fmt.Sprintf("[%s]不存在", dirPathTmp))
 	}
 
 	dirPathTmpFiles := filepath.Join(dirPathTmp, "tmp")
@@ -380,8 +379,7 @@ func main() {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	// fmt.Println(dir)
 	if err != nil {
-		log.Fatal(err)
-		os.Exit(0)
+		printErrAndWaitExit(err)
 	} else {
 		confDir := path.Join(dir, "conf.json")
 		// confDir := "/Users/tonny/source/go/src/test/packageAndUpload/conf1.json"
