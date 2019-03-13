@@ -35,3 +35,4 @@ uploadAndRestart/data
 parseMesh/data
 parseMesh/meshData
 parseMesh/meshImg
+packageAndUpload/conf.json

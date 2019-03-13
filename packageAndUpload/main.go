@@ -191,6 +191,7 @@ func upload(sourceFile string, conf serverConfig) {
 			srcFile, err := os.Open(sourceFile)
 			if err != nil {
 				log.Fatal(err)
+				os.Exit(0)
 			} else {
 				defer srcFile.Close()
 
@@ -200,12 +201,14 @@ func upload(sourceFile string, conf serverConfig) {
 				dstFile, errUpload := sftpClient.Create(pathRemote)
 				if nil != errUpload {
 					log.Fatal(err)
+					os.Exit(0)
 				} else {
 					defer dstFile.Close()
 
 					ff, err := ioutil.ReadAll(srcFile)
 					if err != nil {
 						log.Fatal(err)
+						os.Exit(0)
 					}
 					dstFile.Write(ff)
 					fmt.Printf("[%s]上传到[%s@%s%s]\n", sourceFile, conf.username, conf.host, pathRemote)
@@ -213,20 +216,23 @@ func upload(sourceFile string, conf serverConfig) {
 			}
 		} else {
 			log.Fatal(err)
+			os.Exit(0)
 		}
 	} else {
 		log.Fatal(err)
+		os.Exit(0)
 	}
 }
 
 type confLocal struct {
-	DirLocal   string
-	Host       string
-	Port       int
-	User       string
-	Pwd        string
-	DirRemote  string
-	VersionGig int
+	DirLocal    string
+	DirLocalTmp string
+	Host        string
+	Port        int
+	User        string
+	Pwd         string
+	DirRemote   string
+	VersionGig  int
 }
 
 type resultContent struct {
@@ -241,13 +247,21 @@ func deal(confDir string) {
 	err := json.Unmarshal(confContent, &conf)
 	if err != nil {
 		log.Fatal(err)
+		os.Exit(0)
 	}
-	md5 := md5.New()
 
 	dirPath := conf.DirLocal
-	md5.Write([]byte(dirPath))
-	MD5Str := hex.EncodeToString(md5.Sum(nil))
-	dirPathTmp := filepath.Join(filepath.Dir(dirPath), fmt.Sprintf(".%s_%s", filepath.Base(dirPath), MD5Str))
+	dirPathTmp := conf.DirLocalTmp
+
+	if !isFileExists(dirPath) {
+		log.Fatal(fmt.Sprintf("[%s]不存在", dirPath))
+		os.Exit(0)
+	}
+	if !isFileExists(dirPathTmp) {
+		log.Fatal(fmt.Sprintf("[%s]不存在", dirPathTmp))
+		os.Exit(0)
+	}
+
 	dirPathTmpFiles := filepath.Join(dirPathTmp, "tmp")
 
 	os.MkdirAll(dirPathTmp, 0777)
@@ -312,6 +326,15 @@ func deal(confDir string) {
 			passwd:   conf.Pwd,
 			path:     conf.DirRemote,
 		}
+
+		fmt.Print("\n是否上传更新zip, Y/N?\n")
+
+		reader := bufio.NewReader(os.Stdin)
+		b, _ := reader.ReadByte()
+		if b != 'Y' && b != 'y' {
+			os.Exit(0)
+		}
+
 		upload(zipPath, sshConfig)
 
 		// 删除生成的临时文件夹
@@ -345,6 +368,7 @@ func deal(confDir string) {
 
 // {
 //     "DirLocal": "本地路径",
+// 	   "DirLocalTmp": "本地生成路径",
 //     "Host": "183.60.204.134",
 //     "Port": 22,
 //     "User": "用户名",
@@ -354,9 +378,10 @@ func deal(confDir string) {
 // }
 func main() {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	fmt.Println(dir)
+	// fmt.Println(dir)
 	if err != nil {
 		log.Fatal(err)
+		os.Exit(0)
 	} else {
 		confDir := path.Join(dir, "conf.json")
 		// confDir := "/Users/tonny/source/go/src/test/packageAndUpload/conf1.json"
