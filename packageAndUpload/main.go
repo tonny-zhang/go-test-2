@@ -289,9 +289,9 @@ func deal(confDir string) {
 				"path": fileNew,
 				"name": filePathRel,
 			})
-			resultFiles[file] = md5OfFile
 			fmt.Println("修改文件[", fileNew, "]")
 		}
+		resultFiles[file] = md5OfFile
 	}
 	resultPrev.Files = resultFiles
 
