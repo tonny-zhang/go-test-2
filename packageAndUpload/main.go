@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -142,6 +143,7 @@ func addFileToZip(zipWriter *zip.Writer, filename string, filenameInZip string) 
 	// Using FileInfoHeader() above only uses the basename of the file. If we want
 	// to preserve the folder structure we can overwrite this with the full path.
 	// header.Name = filename
+	filenameInZip = strings.Join(strings.Split(filenameInZip, "\\"), "/")
 	header.Name = filenameInZip
 
 	// Change to deflate to gain better compression
