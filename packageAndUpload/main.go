@@ -203,7 +203,7 @@ func upload(sourceFile string, conf serverConfig) {
 			} else {
 				defer srcFile.Close()
 
-				fmt.Println("正在上传文件....")
+				// fmt.Println("正在上传文件....")
 				pathRemote := path.Join(conf.path, filepath.Base(sourceFile))
 
 				dstFile, errUpload := sftpClient.Create(pathRemote)
@@ -216,7 +216,24 @@ func upload(sourceFile string, conf serverConfig) {
 					if err != nil {
 						printErrAndWaitExit(err)
 					}
-					dstFile.Write(ff)
+
+					// 使用进度条上传
+					countTotal := len(ff)
+					lenCache := 1024 * 543
+					fmt.Fprintf(os.Stdout, "正在上传文件 %d/%d, %d%%\r", 0, countTotal, 0)
+					for indexStart := 0; indexStart < countTotal; {
+						indexEnd := indexStart + lenCache
+						if indexEnd > countTotal {
+							indexEnd = countTotal
+						}
+						dstFile.Write(ff[indexStart:indexEnd])
+						perc := indexEnd * 100 / countTotal
+						fmt.Fprintf(os.Stdout, "正在上传文件 %d/%d, %d%%\r", indexEnd, countTotal, perc)
+						indexStart = indexEnd
+					}
+
+					// 直接上传
+					// dstFile.Write(ff)
 					fmt.Printf("[%s]上传到[%s@%s%s]\n", sourceFile, conf.username, conf.host, pathRemote)
 				}
 			}
@@ -395,7 +412,7 @@ func main() {
 	fmt.Println("\n\n回车退出...")
 	reader.ReadByte()
 	os.Exit(0)
-	// dirPath := "/Users/tonny/source/test/tolua"
 
+	// dirPath := "/Users/tonny/source/test/tolua"
 	// deal(dirPath)
 }
