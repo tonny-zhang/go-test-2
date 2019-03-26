@@ -27,13 +27,16 @@ func printErrAndWaitExit(err interface{}) {
 	reader.ReadByte()
 	os.Exit(0)
 }
-func walkDir(dirPath string) (files []string, err error) {
+func walkDir(dirPath string, excludeExt map[string]bool) (files []string, err error) {
 	files = make([]string, 0, 30)
 
 	err = filepath.Walk(dirPath, func(filename string, fi os.FileInfo, err error) error {
 		if !fi.IsDir() {
 			// filenameR, _ := filepath.Rel(dirPath, filename)
-			files = append(files, filename)
+			ext := filepath.Ext(filename)
+			if _, ok := excludeExt[ext]; !ok {
+				files = append(files, filename)
+			}
 		}
 		return nil
 	})
@@ -254,6 +257,7 @@ type confLocal struct {
 	Pwd         string
 	DirRemote   string
 	VersionGig  int
+	ExtExclude  []string
 }
 
 type resultContent struct {
@@ -272,6 +276,7 @@ func deal(confDir string) {
 
 	dirPath := conf.DirLocal
 	dirPathTmp := conf.DirLocalTmp
+	extExclude := conf.ExtExclude
 
 	if !isFileExists(dirPath) {
 		printErrAndWaitExit(fmt.Sprintf("[%s]不存在", dirPath))
@@ -292,7 +297,11 @@ func deal(confDir string) {
 		jsonContent, _ := ioutil.ReadFile(pathResultFile)
 		json.Unmarshal(jsonContent, &resultPrev)
 	}
-	files, _ := walkDir(dirPath)
+	extExcludeMap := make(map[string]bool)
+	for _, key := range extExclude {
+		extExcludeMap[key] = true
+	}
+	files, _ := walkDir(dirPath, extExcludeMap)
 
 	filesNew := make([]map[string]string, 0, 30)
 	resultFiles := make(map[string]string)
@@ -387,6 +396,7 @@ func deal(confDir string) {
 // {
 //     "DirLocal": "本地路径",
 // 	   "DirLocalTmp": "本地生成路径",
+// 	   "ExtExclude": [".asset", ".meta"],
 //     "Host": "183.60.204.134",
 //     "Port": 22,
 //     "User": "用户名",
@@ -401,7 +411,7 @@ func main() {
 		printErrAndWaitExit(err)
 	} else {
 		confDir := path.Join(dir, "conf.json")
-		// confDir := "/Users/tonny/source/go/src/test/packageAndUpload/conf1.json"
+		// confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
 		if isFileExists(confDir) {
 			deal(confDir)
 		} else {
