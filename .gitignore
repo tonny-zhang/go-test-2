@@ -28,6 +28,7 @@ _testmain.go
 
 .DS_Store
 release
+main
 convertExcel/data
 convertExcel/output
 json2excel/excel

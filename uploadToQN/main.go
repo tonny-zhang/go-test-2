@@ -145,7 +145,7 @@ func main() {
 	// 开始处理之前的老数据
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 	marker := ""
-	timeLastKeep := time.Now().Unix() - 60*60*6
+	timeLastKeep := time.Now().Unix() - 60*60*2
 
 	fmt.Printf("开始处理[ %v ]之前的数据\n", storage.ParsePutTime(timeLastKeep*10000*1000))
 	// timeLastKeep := int64(1553755625)
