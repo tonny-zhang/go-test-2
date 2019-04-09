@@ -86,7 +86,6 @@ func getLastVersion(dirPath string) (vBig, vSmall int) {
 		}
 	}
 
-	fmt.Println(versionBig, versionSmall)
 	return versionBig, versionSmall
 }
 func getFileMd5(filePath string) (string, error) {
@@ -394,11 +393,15 @@ func deal(confDir string) {
 		resultFiles[file] = md5OfFile
 	}
 	resultPrev.Files = resultFiles
-	fmt.Printf("%d 处理文件用时[%v]\n", getStep(false), time.Since(tDealFiles))
 
-	// 删除生成的临时文件夹
-	os.RemoveAll(dirPathTmpFiles)
-	if len(filesNew) > 0 {
+	lenFilesNew := len(filesNew)
+	fmt.Printf("%d 处理文件完成，共更新[%d]个文件，用时[%v]\n", getStep(false), lenFilesNew, time.Since(tDealFiles))
+
+	for i, file := range filesNew {
+		fmt.Printf("更改文件 %d/%d %s\n", i, lenFilesNew, file["name"])
+	}
+
+	if lenFilesNew > 0 {
 		tCreateResult := time.Now()
 		fmt.Printf("%d 准备生成结果文件\n", getStep(true))
 		if resultPrev.VersionGig != conf.VersionGig {
@@ -451,6 +454,8 @@ func deal(confDir string) {
 		ioutil.WriteFile(pathUpdateFile, strUpdateFile, 0777)
 		fmt.Printf("%d 生成更新文件[%s], 用时%v\n", getStep(false), pathUpdateFile, time.Since(tCreateUpdateFile))
 
+		// 删除生成的临时文件夹
+		os.RemoveAll(dirPathTmpFiles)
 		sshConfig := serverConfig{
 			host:     conf.Host,
 			port:     conf.Port,
@@ -478,6 +483,8 @@ func deal(confDir string) {
 		fmt.Printf("%d 上传更新文件完成，用时%v\n", getStep(false), time.Since(tUploadUpdateFile))
 	} else {
 		fmt.Println("没有要处理的更新文件")
+		// 删除生成的临时文件夹
+		os.RemoveAll(dirPathTmpFiles)
 	}
 }
 
