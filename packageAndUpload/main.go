@@ -20,6 +20,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+var step = 1
+
+// 得到一个步骤编号
+func getStep(isNext bool) int {
+	if isNext {
+		step++
+	}
+	return step
+}
 func printErrAndWaitExit(err interface{}) {
 	log.Fatal(err)
 	reader := bufio.NewReader(os.Stdin)
@@ -267,6 +276,11 @@ type resultContent struct {
 }
 
 func deal(confDir string) {
+	fmt.Println("开始处理...")
+
+	tReadConf := time.Now()
+	fmt.Printf("%d 准备读取配置文件\n", getStep(false))
+
 	var conf confLocal
 	confContent, _ := ioutil.ReadFile(confDir)
 	err := json.Unmarshal(confContent, &conf)
@@ -274,6 +288,7 @@ func deal(confDir string) {
 		printErrAndWaitExit(err)
 	}
 
+	fmt.Printf("%d 读取配置文件完成, 用时%v\n", getStep(false), time.Since(tReadConf))
 	dirPath := conf.DirLocal
 	dirPathTmp := conf.DirLocalTmp
 	extExclude := conf.ExtExclude
@@ -292,20 +307,32 @@ func deal(confDir string) {
 
 	pathResultFile := filepath.Join(dirPathTmp, "result.json")
 
+	tReadResultPrev := time.Now()
+	fmt.Printf("%d 准备读取上一次的结果\n", getStep(true))
 	resultPrev := resultContent{}
 	if isFileExists(pathResultFile) {
 		jsonContent, _ := ioutil.ReadFile(pathResultFile)
 		json.Unmarshal(jsonContent, &resultPrev)
 	}
+	fmt.Printf("%d 读取上一次的结果完成, 用时%v\n", getStep(false), time.Since(tReadResultPrev))
+
 	extExcludeMap := make(map[string]bool)
 	for _, key := range extExclude {
 		extExcludeMap[key] = true
 	}
+
+	tGetFiles := time.Now()
+	fmt.Printf("%d 遍历目录[%s]\n", getStep(true), dirPath)
 	files, _ := walkDir(dirPath, extExcludeMap)
+	lenTotal := len(files)
+	fmt.Printf("%d 遍历目录完成 用时 %v, 共有[%d]个文件要处理\n", getStep(false), time.Since(tGetFiles), lenTotal)
 
 	filesNew := make([]map[string]string, 0, 30)
 	resultFiles := make(map[string]string)
-	for _, file := range files {
+
+	tDealFiles := time.Now()
+	fmt.Printf("%d 开始处理文件\n", getStep(true))
+	for i, file := range files {
 		md5OfFile, _ := getFileMd5(file)
 		if md5Old, ok := resultPrev.Files[file]; !ok || md5Old != md5OfFile {
 			filePathRel, _ := filepath.Rel(dirPath, file)
@@ -316,13 +343,18 @@ func deal(confDir string) {
 				"path": fileNew,
 				"name": filePathRel,
 			})
-			fmt.Println("修改文件[", fileNew, "]")
+			fmt.Printf("%d/%d Y [%s]\n", i, lenTotal, file)
+		} else {
+			fmt.Printf("%d/%d N [%s]\n", i, lenTotal, file)
 		}
 		resultFiles[file] = md5OfFile
 	}
 	resultPrev.Files = resultFiles
+	fmt.Printf("%d 处理文件用时[%v]\n", getStep(false), time.Since(tDealFiles))
 
 	if len(filesNew) > 0 {
+		tCreateResult := time.Now()
+		fmt.Printf("%d 准备生成结果文件\n", getStep(true))
 		if resultPrev.VersionGig != conf.VersionGig {
 			resultPrev.VersionGig = conf.VersionGig
 			resultPrev.VersionSmall = 0
@@ -331,11 +363,13 @@ func deal(confDir string) {
 		}
 		resultStr, _ := json.Marshal(resultPrev)
 		ioutil.WriteFile(pathResultFile, resultStr, 0777)
-		fmt.Println("生成结果文件[", pathResultFile, "]")
+		fmt.Printf("%d 生成结果文件 [%s] 用时%v\n", getStep(false), pathResultFile, time.Since(tCreateResult))
 
 		versionCurrent := fmt.Sprintf("%d.%d", resultPrev.VersionGig, resultPrev.VersionSmall)
 		pathVersionCurrent := path.Join(dirPathTmp, versionCurrent)
 
+		tCreateZip := time.Now()
+		fmt.Printf("%d 准备生成zip文件\n", getStep(true))
 		os.MkdirAll(pathVersionCurrent, 0777)
 		copy(pathResultFile, path.Join(pathVersionCurrent, "result.json"))
 
@@ -344,8 +378,7 @@ func deal(confDir string) {
 
 		createZip(zipPath, filesNew)
 
-		fmt.Println("生成zip文件[", zipPath, "]")
-
+		fmt.Printf("%d 生成zip文件 [%s], 用时%v\n", getStep(false), zipPath, time.Since(tCreateZip))
 		sshConfig := serverConfig{
 			host:     conf.Host,
 			port:     conf.Port,
@@ -406,11 +439,11 @@ func deal(confDir string) {
 // }
 func main() {
 	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	// fmt.Println(dir)
 	if err != nil {
 		printErrAndWaitExit(err)
 	} else {
 		confDir := path.Join(dir, "conf.json")
+		// fmt.Println(dir)
 		// confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
 		if isFileExists(confDir) {
 			deal(confDir)
