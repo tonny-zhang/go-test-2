@@ -13,6 +13,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,13 +46,48 @@ func walkDir(dirPath string, excludeExt map[string]bool) (files []string, err er
 			// filenameR, _ := filepath.Rel(dirPath, filename)
 			ext := filepath.Ext(filename)
 			if _, ok := excludeExt[ext]; !ok {
-				files = append(files, filename)
+				// 过滤.目录（即隐藏目录）
+				if b, _ := regexp.MatchString(`/\.\w`, filename); !b {
+					files = append(files, filename)
+				}
+
 			}
 		}
 		return nil
 	})
 
 	return files, err
+}
+
+func getLastVersion(dirPath string) (vBig, vSmall int) {
+	dirs, err := ioutil.ReadDir(dirPath)
+
+	versionBig := 0
+	versionSmall := 0
+	if err == nil {
+		for _, dir := range dirs {
+			if dir.IsDir() {
+				dirName := dir.Name()
+				b, _ := regexp.MatchString(`\d+\.\d+`, dirName)
+				if b {
+					arr := strings.Split(dirName, ".")
+					if len(arr) == 2 {
+						vBig, _ := strconv.Atoi(arr[0])
+						vSmall, _ := strconv.Atoi(arr[1])
+						if vBig > versionBig {
+							versionBig = vBig
+							versionSmall = vSmall
+						} else if vSmall > versionSmall {
+							versionSmall = vSmall
+						}
+					}
+				}
+			}
+		}
+	}
+
+	fmt.Println(versionBig, versionSmall)
+	return versionBig, versionSmall
 }
 func getFileMd5(filePath string) (string, error) {
 	//Initialize variable returnMD5String now in case an error has to be returned
@@ -307,16 +344,21 @@ func deal(confDir string) {
 	os.MkdirAll(dirPathTmp, 0777)
 	os.Mkdir(dirPathTmpFiles, 0777)
 
-	pathResultFile := filepath.Join(dirPathTmp, "result.json")
+	vBig, vSmall := getLastVersion(dirPathTmp)
+
+	dirPathVersion := strconv.Itoa(vBig) + "." + strconv.Itoa(vSmall)
+	pathResultFile := filepath.Join(dirPathTmp, dirPathVersion, "result.json")
 
 	tReadResultPrev := time.Now()
-	fmt.Printf("%d 准备读取上一次的结果\n", getStep(true))
+	fmt.Printf("%d 准备读取上一个版本[%s]的结果\n", getStep(true), dirPathVersion)
 	resultPrev := resultContent{}
 	if isFileExists(pathResultFile) {
 		jsonContent, _ := ioutil.ReadFile(pathResultFile)
 		json.Unmarshal(jsonContent, &resultPrev)
+	} else {
+		fmt.Printf("[%s]不存在\n", pathResultFile)
 	}
-	fmt.Printf("%d 读取上一次的结果完成, 用时%v\n", getStep(false), time.Since(tReadResultPrev))
+	fmt.Printf("%d 读取上一个版本的结果完成, 用时%v\n", getStep(false), time.Since(tReadResultPrev))
 
 	extExcludeMap := make(map[string]bool)
 	for _, key := range extExclude {
@@ -354,6 +396,8 @@ func deal(confDir string) {
 	resultPrev.Files = resultFiles
 	fmt.Printf("%d 处理文件用时[%v]\n", getStep(false), time.Since(tDealFiles))
 
+	// 删除生成的临时文件夹
+	os.RemoveAll(dirPathTmpFiles)
 	if len(filesNew) > 0 {
 		tCreateResult := time.Now()
 		fmt.Printf("%d 准备生成结果文件\n", getStep(true))
@@ -364,26 +408,49 @@ func deal(confDir string) {
 			resultPrev.VersionSmall++
 		}
 		resultStr, _ := json.Marshal(resultPrev)
-		ioutil.WriteFile(pathResultFile, resultStr, 0777)
-		fmt.Printf("%d 生成结果文件 [%s] 用时%v\n", getStep(false), pathResultFile, time.Since(tCreateResult))
 
 		versionCurrent := fmt.Sprintf("%d.%d", resultPrev.VersionGig, resultPrev.VersionSmall)
+
 		pathVersionCurrent := path.Join(dirPathTmp, versionCurrent)
+		os.MkdirAll(pathVersionCurrent, 0777)
+
+		pathResultFileNextVersion := filepath.Join(pathVersionCurrent, "result.json")
+		ioutil.WriteFile(pathResultFileNextVersion, resultStr, 0777)
+		fmt.Printf("%d 生成结果文件 [%s] 用时%v\n", getStep(false), pathResultFileNextVersion, time.Since(tCreateResult))
 
 		tCreateZip := time.Now()
 		fmt.Printf("%d 准备生成zip文件\n", getStep(true))
-		os.MkdirAll(pathVersionCurrent, 0777)
-		copy(pathResultFile, path.Join(pathVersionCurrent, "result.json"))
 
 		zipName := time.Now().Format("20060102150405.zip")
 		zipPath := filepath.Join(pathVersionCurrent, zipName)
 
 		createZip(zipPath, filesNew)
 
-		// 删除生成的临时文件夹
-		os.RemoveAll(dirPathTmpFiles)
-
 		fmt.Printf("%d 生成zip文件 [%s], 用时%v\n", getStep(false), zipPath, time.Since(tCreateZip))
+
+		tCreateUpdateFile := time.Now()
+		fmt.Printf("%d 准备生成更新文件\n", getStep(true))
+		var jsonUpdateFile = make(map[string][]map[string]string)
+		pathUpdateFilePrev := path.Join(dirPathTmp, dirPathVersion, "version.txt")
+		pathUpdateFile := path.Join(pathVersionCurrent, "version.txt")
+
+		var dataUpdateFile = make([]map[string]string, 0, 0)
+		if isFileExists(pathUpdateFilePrev) {
+			jsonContent, _ := ioutil.ReadFile(pathUpdateFilePrev)
+			json.Unmarshal(jsonContent, &jsonUpdateFile)
+			dataUpdateFile = jsonUpdateFile["data"]
+		}
+
+		var item = map[string]string{
+			"version": versionCurrent,
+			"file":    zipName,
+		}
+		jsonUpdateFile["data"] = append(dataUpdateFile, item)
+
+		strUpdateFile, _ := json.Marshal(jsonUpdateFile)
+		ioutil.WriteFile(pathUpdateFile, strUpdateFile, 0777)
+		fmt.Printf("%d 生成更新文件[%s], 用时%v\n", getStep(false), pathUpdateFile, time.Since(tCreateUpdateFile))
+
 		sshConfig := serverConfig{
 			host:     conf.Host,
 			port:     conf.Port,
@@ -404,28 +471,6 @@ func deal(confDir string) {
 		fmt.Printf("%d 准备上传zip文件\n", getStep(true))
 		upload(zipPath, sshConfig)
 		fmt.Printf("%d 上传zip文件用时%v\n", getStep(false), time.Since(tUpload))
-
-		tCreateUpdateFile := time.Now()
-		fmt.Printf("%d 准备生成更新文件\n", getStep(true))
-		var jsonUpdateFile = make(map[string][]map[string]string)
-		pathUpdateFile := path.Join(dirPathTmp, "version.txt")
-
-		var dataUpdateFile = make([]map[string]string, 0, 0)
-		if isFileExists(pathUpdateFile) {
-			jsonContent, _ := ioutil.ReadFile(pathUpdateFile)
-			json.Unmarshal(jsonContent, &jsonUpdateFile)
-			dataUpdateFile = jsonUpdateFile["data"]
-		}
-
-		var item = map[string]string{
-			"version": versionCurrent,
-			"file":    zipName,
-		}
-		jsonUpdateFile["data"] = append(dataUpdateFile, item)
-
-		strUpdateFile, _ := json.Marshal(jsonUpdateFile)
-		ioutil.WriteFile(pathUpdateFile, strUpdateFile, 0777)
-		fmt.Printf("%d 生成更新文件[%s], 用时%v\n", getStep(false), pathUpdateFile, time.Since(tCreateUpdateFile))
 
 		tUploadUpdateFile := time.Now()
 		fmt.Printf("%d 准备上传更新文件\n", getStep(true))
@@ -453,8 +498,8 @@ func main() {
 		printErrAndWaitExit(err)
 	} else {
 		confDir := path.Join(dir, "conf.json")
-		fmt.Println(dir)
-		confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
+		// fmt.Println(dir)
+		// confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
 		if isFileExists(confDir) {
 			deal(confDir)
 		} else {
