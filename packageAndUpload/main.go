@@ -232,6 +232,8 @@ func upload(sourceFile string, conf serverConfig) {
 					// 使用进度条上传
 					countTotal := len(ff)
 					lenCache := 1024 * 543
+
+					tUpload := time.Now()
 					fmt.Fprintf(os.Stdout, "正在上传文件 %d/%d, %d%%\r", 0, countTotal, 0)
 					for indexStart := 0; indexStart < countTotal; {
 						indexEnd := indexStart + lenCache
@@ -246,7 +248,7 @@ func upload(sourceFile string, conf serverConfig) {
 
 					// 直接上传
 					// dstFile.Write(ff)
-					fmt.Printf("[%s]上传到[%s@%s%s]\n", sourceFile, conf.username, conf.host, pathRemote)
+					fmt.Printf("[%s]上传到[%s@%s%s], 用时%v\n", sourceFile, conf.username, conf.host, pathRemote, time.Since(tUpload))
 				}
 			}
 		} else {
@@ -378,6 +380,9 @@ func deal(confDir string) {
 
 		createZip(zipPath, filesNew)
 
+		// 删除生成的临时文件夹
+		os.RemoveAll(dirPathTmpFiles)
+
 		fmt.Printf("%d 生成zip文件 [%s], 用时%v\n", getStep(false), zipPath, time.Since(tCreateZip))
 		sshConfig := serverConfig{
 			host:     conf.Host,
@@ -395,11 +400,13 @@ func deal(confDir string) {
 			os.Exit(0)
 		}
 
+		tUpload := time.Now()
+		fmt.Printf("%d 准备上传zip文件\n", getStep(true))
 		upload(zipPath, sshConfig)
+		fmt.Printf("%d 上传zip文件用时%v\n", getStep(false), time.Since(tUpload))
 
-		// 删除生成的临时文件夹
-		os.RemoveAll(dirPathTmpFiles)
-
+		tCreateUpdateFile := time.Now()
+		fmt.Printf("%d 准备生成更新文件\n", getStep(true))
 		var jsonUpdateFile = make(map[string][]map[string]string)
 		pathUpdateFile := path.Join(dirPathTmp, "version.txt")
 
@@ -418,9 +425,12 @@ func deal(confDir string) {
 
 		strUpdateFile, _ := json.Marshal(jsonUpdateFile)
 		ioutil.WriteFile(pathUpdateFile, strUpdateFile, 0777)
-		fmt.Println("生成更新文件[", pathUpdateFile, "]")
+		fmt.Printf("%d 生成更新文件[%s], 用时%v\n", getStep(false), pathUpdateFile, time.Since(tCreateUpdateFile))
 
+		tUploadUpdateFile := time.Now()
+		fmt.Printf("%d 准备上传更新文件\n", getStep(true))
 		upload(pathUpdateFile, sshConfig)
+		fmt.Printf("%d 上传更新文件完成，用时%v\n", getStep(false), time.Since(tUploadUpdateFile))
 	} else {
 		fmt.Println("没有要处理的更新文件")
 	}
@@ -443,8 +453,8 @@ func main() {
 		printErrAndWaitExit(err)
 	} else {
 		confDir := path.Join(dir, "conf.json")
-		// fmt.Println(dir)
-		// confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
+		fmt.Println(dir)
+		confDir = "/Users/tonny/source/go/src/test/packageAndUpload/conf.json"
 		if isFileExists(confDir) {
 			deal(confDir)
 		} else {
