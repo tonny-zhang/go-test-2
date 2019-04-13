@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"test/packageAndUpload/fastwalk"
 	"time"
 
@@ -57,7 +58,10 @@ func walkDir(dirPath string, excludeExt map[string]bool) (files []string, err er
 	// 	return nil
 	// })
 
-	fastwalk.Walk(dirPath, func(filename string, t os.FileMode) error {
+	var mu sync.Mutex
+	err = fastwalk.Walk(dirPath, func(filename string, t os.FileMode) error {
+		mu.Lock()
+		defer mu.Unlock()
 		if !t.IsDir() {
 			// filenameR, _ := filepath.Rel(dirPath, filename)
 			ext := filepath.Ext(filename)
@@ -398,8 +402,8 @@ func deal(confDir string) {
 			os.MkdirAll(filepath.Dir(fileNew), 0777)
 			copy(file, fileNew)
 			filesNew = append(filesNew, map[string]string{
-				"path": fileNew,
-				"name": filePathRel,
+				"path": filepath.ToSlash(fileNew),
+				"name": filepath.ToSlash(filePathRel),
 			})
 			fmt.Printf("%d/%d Y [%s] [%s] [%s]\n", i, lenTotal, file, md5OfFile, md5Old)
 		} else {
