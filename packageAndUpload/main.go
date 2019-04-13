@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"test/packageAndUpload/fastwalk"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -41,21 +42,35 @@ func printErrAndWaitExit(err interface{}) {
 func walkDir(dirPath string, excludeExt map[string]bool) (files []string, err error) {
 	files = make([]string, 0, 30)
 
-	err = filepath.Walk(dirPath, func(filename string, fi os.FileInfo, err error) error {
-		if !fi.IsDir() {
+	// err = filepath.Walk(dirPath, func(filename string, fi os.FileInfo, err error) error {
+	// 	if !fi.IsDir() {
+	// 		// filenameR, _ := filepath.Rel(dirPath, filename)
+	// 		ext := filepath.Ext(filename)
+	// 		if _, ok := excludeExt[ext]; !ok {
+	// 			// 过滤.目录（即隐藏目录）
+	// 			if b, _ := regexp.MatchString(`/\.\w`, filename); !b {
+	// 				files = append(files, filename)
+	// 			}
+
+	// 		}
+	// 	}
+	// 	return nil
+	// })
+
+	fastwalk.Walk(dirPath, func(filename string, t os.FileMode) error {
+		if !t.IsDir() {
 			// filenameR, _ := filepath.Rel(dirPath, filename)
 			ext := filepath.Ext(filename)
 			if _, ok := excludeExt[ext]; !ok {
 				// 过滤.目录（即隐藏目录）
 				if b, _ := regexp.MatchString(`/\.\w`, filename); !b {
-					files = append(files, filename)
+					files = append(files, filepath.ToSlash(filename))
 				}
 
 			}
 		}
 		return nil
 	})
-
 	return files, err
 }
 
@@ -386,7 +401,7 @@ func deal(confDir string) {
 				"path": fileNew,
 				"name": filePathRel,
 			})
-			fmt.Printf("%d/%d Y [%s]\n", i, lenTotal, file)
+			fmt.Printf("%d/%d Y [%s] [%s] [%s]\n", i, lenTotal, file, md5OfFile, md5Old)
 		} else {
 			fmt.Printf("%d/%d N [%s]\n", i, lenTotal, file)
 		}
@@ -521,3 +536,11 @@ func main() {
 	// dirPath := "/Users/tonny/source/test/tolua"
 	// deal(dirPath)
 }
+
+// func main() {
+// 	dirPath := "/Users/tonny/source/test/tolua"
+// 	fastwalk.Walk(dirPath, func(filename string, t os.FileMode) error {
+// 		fmt.Println(filename, t.IsDir())
+// 		return nil
+// 	})
+// }
