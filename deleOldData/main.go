@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -126,6 +127,29 @@ func mysqlTest() {
 		fmt.Println(record)
 	}
 }
+func redisTest() {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	dataText := make(map[string]interface{})
+	dataText["id"] = 1
+	dataText["name"] = "hello"
+	client.HMSet("test", dataText)
+	val, err := client.HGetAll("test").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("key", val)
+
+	valDele, err := client.Del("test").Result()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("val_dele", valDele)
+}
 
 type rowID struct {
 	ID int
@@ -134,22 +158,19 @@ type rowID struct {
 func main() {
 	// mysqlTest()
 
-	// result := make([]rowID, 0)
-	result, _ := query("SELECT id from role where time_login < '2019-03-25 00:00:00'")
-	fmt.Println(result)
+	// result, _ := query("SELECT id from role where time_login < '2019-03-25 00:00:00'")
+	// fmt.Println(result)
 
-	result1, _ := query1("SELECT id from role where time_login < '2019-03-25 00:00:00'")
+	// result1, _ := query1("SELECT id from role where time_login < '2019-03-25 00:00:00'")
+	// fmt.Println(result1)
 
-	fmt.Println(result1)
-	// for i, v := range result1 {
-	// 	fmt.Println(i, v)
-	// }
+	// result2 := make([]rowID, 0)
+	// query2("SELECT id from role where time_login < '2019-03-25 00:00:00'", func(rows *sql.Rows) {
+	// 	var rowData rowID
+	// 	rows.Scan(&rowData.ID)
+	// 	result2 = append(result2, rowData)
+	// })
+	// fmt.Println(result2)
 
-	result2 := make([]rowID, 0)
-	query2("SELECT id from role where time_login < '2019-03-25 00:00:00'", func(rows *sql.Rows) {
-		var rowData rowID
-		rows.Scan(&rowData.ID)
-		result2 = append(result2, rowData)
-	})
-	fmt.Println(result2)
+	redisTest()
 }
