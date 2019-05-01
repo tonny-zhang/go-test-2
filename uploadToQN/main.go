@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	accessKey = "rCyQK2Z_LmPf6uBFXpao9aJhTg1CMC7K1ghjUNM4"
-	secretKey = "CUj14Kx03hQA4QVJvpvPpiZSRhGcl6kyR75NY8sX"
+	accessKey = "Ojnf5JIMgNiz9xmbvqvjcsZjqqEUq1RJPK2bSLbT"
+	secretKey = "OiBxyOXnbNrmQbPfs-bnIzBzGZ86Ojrq8deohk-t"
 	bucket    = "xy3_bak"
 	recordDir = "/tmp/upload2QN/"
 )
@@ -145,7 +145,7 @@ func main() {
 	// 开始处理之前的老数据
 	bucketManager := storage.NewBucketManager(mac, &cfg)
 	marker := ""
-	timeLastKeep := time.Now().Unix() - 60*60*2
+	timeLastKeep := time.Now().Unix() - 60*60*8
 
 	fmt.Printf("开始处理[ %v ]之前的数据\n", storage.ParsePutTime(timeLastKeep*10000*1000))
 	// timeLastKeep := int64(1553755625)
