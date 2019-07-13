@@ -14,15 +14,18 @@ type Client struct {
 }
 
 // Send text message to client
-func (c *Client) Send(message string) error {
-	_, err := c.conn.Write([]byte(message))
-	return err
-}
+func (c *Client) Send(data []byte, code int16) error {
+	packer := new(Packer)
+	packer.Code = code
+	packer.Length = int32(len(data))
+	packer.Msg = data
 
-// SendBytes send bytes to client
-func (c *Client) SendBytes(b []byte) error {
-	_, err := c.conn.Write(b)
-	return err
+	bytes, e := packer.PackToByte()
+	if e != nil {
+		return e
+	}
+	_, e1 := c.conn.Write(bytes)
+	return e1
 }
 
 // Conn get net.Conn

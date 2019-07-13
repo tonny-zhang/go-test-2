@@ -329,7 +329,6 @@ const Client = (() => {
             index_write += 4;
             bf_data.copy(bf_send, index_write);
 
-            console.log(bf_send)
             socket.write(bf_send);
         }
         /**

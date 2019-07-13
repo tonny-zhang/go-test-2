@@ -16,6 +16,7 @@ func main() {
 	})
 	server.OnNewMessage(func(c *Client, code int16, message string) {
 		log.Printf("get client [%s] code [%d] message [%s] \n", c.Conn().RemoteAddr(), code, message)
+		c.Send([]byte("from server get ["+message+"]"), -100)
 	})
 	server.OnClientClosed(func(c *Client, e error) {
 		log.Printf("client [%s] closed\n", c.Conn().RemoteAddr())

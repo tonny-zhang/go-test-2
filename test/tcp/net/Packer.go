@@ -1,6 +1,7 @@
 package net
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -19,11 +20,21 @@ type Packer struct {
 // Pack pack data
 func (p *Packer) Pack(writer io.Writer) error {
 	var err error
-	err = binary.Write(writer, binary.LittleEndian, SPLITER)
+	err = binary.Write(writer, binary.LittleEndian, []byte(SPLITER))
 	err = binary.Write(writer, binary.LittleEndian, &p.Code)
 	err = binary.Write(writer, binary.LittleEndian, &p.Length)
 	err = binary.Write(writer, binary.LittleEndian, &p.Msg)
 	return err
+}
+
+// PackToByte get bytes of pack data
+func (p *Packer) PackToByte() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	e := p.Pack(buf)
+	if e != nil {
+		return nil, e
+	}
+	return buf.Bytes(), nil
 }
 
 // Unpack unpack data
