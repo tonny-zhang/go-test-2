@@ -258,8 +258,8 @@ func Create(conf interface{}, data interface{}) ([]byte, error) {
 	// 	return buf.Bytes(), err
 	// }
 
-	fmt.Printf("old bytes : %x\n", buf.Bytes())
-	fmt.Printf("xor bytes : %x\n", xor(buf.Bytes()))
-	fmt.Printf("xor2 bytes : %x\n", xor(xor(buf.Bytes())))
+	// fmt.Printf("old bytes : %x\n", buf.Bytes())
+	// fmt.Printf("xor bytes : %x\n", xor(buf.Bytes()))
+	// fmt.Printf("xor2 bytes : %x\n", xor(xor(buf.Bytes())))
 	return xor(buf.Bytes()), err
 }

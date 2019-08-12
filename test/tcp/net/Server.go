@@ -64,6 +64,6 @@ func (s *Server) Listen(address string) {
 			conn:   conn,
 			Server: s,
 		}
-		go client.listen()
+		go client.work()
 	}
 }

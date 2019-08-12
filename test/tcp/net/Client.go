@@ -39,7 +39,7 @@ func (c *Client) Close() error {
 }
 
 // Read client data from channel
-func (c *Client) listen() {
+func (c *Client) work() {
 	if c.Server.onNewClient != nil {
 		c.Server.onNewClient(c)
 	}
