@@ -17,11 +17,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"test/packageAndUpload/fastwalk"
 	"time"
 
-	"github.com/pkg/sftp"
-	"golang.org/x/crypto/ssh"
+	"./uploader"
+
+	"./config"
+	"./fastwalk"
 )
 
 var step = 1
@@ -42,21 +43,6 @@ func printErrAndWaitExit(err interface{}) {
 }
 func walkDir(dirPath string, excludeExt map[string]bool) (files []string, err error) {
 	files = make([]string, 0, 30)
-
-	// err = filepath.Walk(dirPath, func(filename string, fi os.FileInfo, err error) error {
-	// 	if !fi.IsDir() {
-	// 		// filenameR, _ := filepath.Rel(dirPath, filename)
-	// 		ext := filepath.Ext(filename)
-	// 		if _, ok := excludeExt[ext]; !ok {
-	// 			// 过滤.目录（即隐藏目录）
-	// 			if b, _ := regexp.MatchString(`/\.\w`, filename); !b {
-	// 				files = append(files, filename)
-	// 			}
-
-	// 		}
-	// 	}
-	// 	return nil
-	// })
 
 	var mu sync.Mutex
 	err = fastwalk.Walk(dirPath, func(filename string, t os.FileMode) error {
@@ -225,107 +211,6 @@ func addFileToZip(zipWriter *zip.Writer, filename string, filenameInZip string) 
 	return err
 }
 
-type serverConfig struct {
-	host     string
-	port     int
-	username string
-	passwd   string
-	path     string
-}
-
-func upload(sourceFile string, conf serverConfig) {
-	var (
-		auth         []ssh.AuthMethod
-		addr         string
-		clientConfig *ssh.ClientConfig
-		sshClient    *ssh.Client
-		sftpClient   *sftp.Client
-		err          error
-	)
-	// defer sshClient.Close()
-	// defer sftpClient.Close()
-	// get auth method
-	auth = make([]ssh.AuthMethod, 0)
-	auth = append(auth, ssh.Password(conf.passwd))
-	// auth = append(auth, ssh.Password(password))
-
-	clientConfig = &ssh.ClientConfig{
-		User:            conf.username,
-		Auth:            auth,
-		Timeout:         30 * time.Second,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	// connet to ssh
-	addr = fmt.Sprintf("%s:%d", conf.host, conf.port)
-
-	if sshClient, err = ssh.Dial("tcp", addr, clientConfig); err == nil {
-		// defer sshClient.Close()
-		if sftpClient, err = sftp.NewClient(sshClient); err == nil {
-			// defer sftpClient.Close()
-
-			srcFile, err := os.Open(sourceFile)
-			if err != nil {
-				printErrAndWaitExit(err)
-			} else {
-				defer srcFile.Close()
-
-				// fmt.Println("正在上传文件....")
-				pathRemote := path.Join(conf.path, filepath.Base(sourceFile))
-
-				dstFile, errUpload := sftpClient.Create(pathRemote)
-				if nil != errUpload {
-					printErrAndWaitExit(err)
-				} else {
-					defer dstFile.Close()
-
-					ff, err := ioutil.ReadAll(srcFile)
-					if err != nil {
-						printErrAndWaitExit(err)
-					}
-
-					// 使用进度条上传
-					countTotal := len(ff)
-					lenCache := 1024 * 543
-
-					tUpload := time.Now()
-					fmt.Fprintf(os.Stdout, "正在上传文件 %d/%d, %d%%\r", 0, countTotal, 0)
-					for indexStart := 0; indexStart < countTotal; {
-						indexEnd := indexStart + lenCache
-						if indexEnd > countTotal {
-							indexEnd = countTotal
-						}
-						dstFile.Write(ff[indexStart:indexEnd])
-						perc := indexEnd * 100 / countTotal
-						fmt.Fprintf(os.Stdout, "正在上传文件 %d/%d, %d%%\r", indexEnd, countTotal, perc)
-						indexStart = indexEnd
-					}
-
-					// 直接上传
-					// dstFile.Write(ff)
-					fmt.Printf("[%s]上传到[%s@%s%s], 用时%v\n", sourceFile, conf.username, conf.host, pathRemote, time.Since(tUpload))
-				}
-			}
-		} else {
-			printErrAndWaitExit(err)
-		}
-	} else {
-		printErrAndWaitExit(err)
-	}
-}
-
-type confLocal struct {
-	DirLocal    string
-	DirLocalTmp string
-	Host        string
-	Port        int
-	User        string
-	Pwd         string
-	DirRemote   string
-	VersionGig  int
-	ExtExclude  []string
-}
-
 type resultContent struct {
 	Files        map[string]string
 	VersionGig   int
@@ -338,7 +223,7 @@ func deal(confDir string) {
 	tReadConf := time.Now()
 	fmt.Printf("%d 准备读取配置文件\n", getStep(false))
 
-	var conf confLocal
+	var conf config.ConfLocal
 	confContent, _ := ioutil.ReadFile(confDir)
 	err := json.Unmarshal(confContent, &conf)
 	if err != nil {
@@ -443,7 +328,8 @@ func deal(confDir string) {
 		tCreateZip := time.Now()
 		fmt.Printf("%d 准备生成zip文件\n", getStep(true))
 
-		zipName := time.Now().Format("20060102150405.zip")
+		// zipName := time.Now().Format("20060102150405.zip")
+		zipName := versionCurrent + ".zip"
 		zipPath := filepath.Join(pathVersionCurrent, zipName)
 
 		createZip(zipPath, filesNew)
@@ -475,14 +361,6 @@ func deal(confDir string) {
 
 		// 删除生成的临时文件夹
 		os.RemoveAll(dirPathTmpFiles)
-		sshConfig := serverConfig{
-			host:     conf.Host,
-			port:     conf.Port,
-			username: conf.User,
-			passwd:   conf.Pwd,
-			path:     conf.DirRemote,
-		}
-
 		fmt.Print("\n是否上传更新zip, Y/N?\n")
 
 		reader := bufio.NewReader(os.Stdin)
@@ -493,17 +371,23 @@ func deal(confDir string) {
 
 		tUpload := time.Now()
 		fmt.Printf("%d 准备上传zip文件\n", getStep(true))
-		upload(zipPath, sshConfig)
+		upload(zipPath, conf)
 		fmt.Printf("%d 上传zip文件用时%v\n", getStep(false), time.Since(tUpload))
 
 		tUploadUpdateFile := time.Now()
 		fmt.Printf("%d 准备上传更新文件\n", getStep(true))
-		upload(pathUpdateFile, sshConfig)
+		upload(pathUpdateFile, conf)
 		fmt.Printf("%d 上传更新文件完成，用时%v\n", getStep(false), time.Since(tUploadUpdateFile))
 	} else {
 		fmt.Println("没有要处理的更新文件")
 		// 删除生成的临时文件夹
 		os.RemoveAll(dirPathTmpFiles)
+	}
+}
+
+func upload(sourceFile string, conf config.ConfLocal) {
+	if conf.QnKey != "" && conf.QnSecret != "" && conf.QnBucket != "" {
+		uploader.UploadToQN(conf, sourceFile)
 	}
 }
 
