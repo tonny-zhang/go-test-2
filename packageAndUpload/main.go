@@ -17,12 +17,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"test/packageAndUpload/config"
+	"test/packageAndUpload/fastwalk"
+	"test/packageAndUpload/uploader"
 	"time"
-
-	"./uploader"
-
-	"./config"
-	"./fastwalk"
 )
 
 var step = 1

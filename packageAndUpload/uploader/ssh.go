@@ -10,7 +10,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"../config"
+	"test/packageAndUpload/config"
+
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 )

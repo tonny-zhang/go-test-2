@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"../config"
+	"test/packageAndUpload/config"
 
 	"github.com/qiniu/api.v7/auth/qbox"
 	"github.com/qiniu/api.v7/storage"
