@@ -18,10 +18,11 @@ import (
 )
 
 var (
-	accessKey = "Ojnf5JIMgNiz9xmbvqvjcsZjqqEUq1RJPK2bSLbT"
-	secretKey = "OiBxyOXnbNrmQbPfs-bnIzBzGZ86Ojrq8deohk-t"
-	bucket    = "xy3_bak"
-	recordDir = "/tmp/upload2QN/"
+	accessKey       = "Ojnf5JIMgNiz9xmbvqvjcsZjqqEUq1RJPK2bSLbT"
+	secretKey       = "OiBxyOXnbNrmQbPfs-bnIzBzGZ86Ojrq8deohk-t"
+	bucket          = "xy3_bak"
+	recordDir       = "/tmp/upload2QN/"
+	timeKeep  int64 = 60 * 60 * 6 // 保存的时长
 )
 
 func md5Hex(str string) string {
@@ -43,6 +44,48 @@ func isFileExists(name string) bool {
 	}
 	return true
 }
+func deleOldData(mac *qbox.Mac, cfg storage.Config) {
+	// 开始处理之前的老数据
+	bucketManager := storage.NewBucketManager(mac, &cfg)
+	marker := ""
+	timeLastKeep := time.Now().Unix() - timeKeep
+
+	fmt.Printf("开始处理[ %v ]之前的数据\n", storage.ParsePutTime(timeLastKeep*10000*1000))
+	// timeLastKeep := int64(1553755625)
+	// fmt.Println(time.Now().Unix(), time.Now().Nanosecond(), timeLastKeep)
+	// fmt.Println(storage.ParsePutTime(timeLastKeep * 10000 * 1000))
+	// fmt.Println("")
+	for {
+		entries, _, nextMarker, hashNext, err := bucketManager.ListFiles(bucket, "", "", marker, 100)
+		if err != nil {
+			fmt.Println("list error,", err)
+			break
+		}
+		//print entries
+		for _, entry := range entries {
+			timeFile := entry.PutTime / 10000 / 1000
+			fmt.Println(entry.Key, storage.ParsePutTime(entry.PutTime))
+			// fmt.Println(timeFile, timeFile < timeLastKeep)
+			if timeFile < timeLastKeep {
+				err := bucketManager.Delete(bucket, entry.Key)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				fmt.Printf("删除文件[%s]\n", entry.Key)
+			} else {
+				fmt.Printf("文件[%s]不用处理\n", entry.Key)
+			}
+		}
+		if hashNext {
+			marker = nextMarker
+		} else {
+			//list end
+			break
+		}
+	}
+}
 func main() {
 	timeStart := time.Now()
 	args := os.Args
@@ -51,7 +94,7 @@ func main() {
 		localFile = args[1]
 	}
 	if !isFileExists(localFile) {
-		fmt.Printf("[%s]不存在", localFile)
+		fmt.Printf("[%s]不存在\n", localFile)
 		os.Exit(0)
 	}
 	key := filepath.Base(localFile)
@@ -142,44 +185,5 @@ func main() {
 	os.Remove(recordPath)
 	fmt.Println(ret.Key, "上传完成，总用时：", time.Since(timeStart))
 
-	// 开始处理之前的老数据
-	bucketManager := storage.NewBucketManager(mac, &cfg)
-	marker := ""
-	timeLastKeep := time.Now().Unix() - 60*60*8
-
-	fmt.Printf("开始处理[ %v ]之前的数据\n", storage.ParsePutTime(timeLastKeep*10000*1000))
-	// timeLastKeep := int64(1553755625)
-	// fmt.Println(time.Now().Unix(), time.Now().Nanosecond(), timeLastKeep)
-	// fmt.Println(storage.ParsePutTime(timeLastKeep * 10000 * 1000))
-	// fmt.Println("")
-	for {
-		entries, _, nextMarker, hashNext, err := bucketManager.ListFiles(bucket, "", "", marker, 100)
-		if err != nil {
-			fmt.Println("list error,", err)
-			break
-		}
-		//print entries
-		for _, entry := range entries {
-			timeFile := entry.PutTime / 10000 / 1000
-			fmt.Println(entry.Key, storage.ParsePutTime(entry.PutTime))
-			// fmt.Println(timeFile, timeFile < timeLastKeep)
-			if timeFile < timeLastKeep {
-				err := bucketManager.Delete(bucket, entry.Key)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				fmt.Printf("删除文件[%s]\n", entry.Key)
-			} else {
-				fmt.Printf("文件[%s]不用处理\n", entry.Key)
-			}
-		}
-		if hashNext {
-			marker = nextMarker
-		} else {
-			//list end
-			break
-		}
-	}
+	deleOldData(mac, cfg)
 }
