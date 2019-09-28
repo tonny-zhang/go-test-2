@@ -102,7 +102,7 @@ func convert(excelFileName string) {
 		// fmt.Printf("lenCellActual = %d\n", lenCellActual)
 
 		// fmt.Printf("len_header = %d\n", lenEnCell)
-		var data []map[string]interface{}
+		data := []map[string]interface{}{}
 		lenReaded := 0
 		for _, row := range rows[4:] {
 			// if i != 32 {
