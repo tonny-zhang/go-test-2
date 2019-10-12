@@ -22,7 +22,7 @@ var (
 	secretKey       = "OiBxyOXnbNrmQbPfs-bnIzBzGZ86Ojrq8deohk-t"
 	bucket          = "xy3_bak"
 	recordDir       = "/tmp/upload2QN/"
-	timeKeep  int64 = 60 * 60 * 6 // 保存的时长
+	timeKeep  int64 = 60 * 60 * 4 // 保存的时长
 )
 
 func md5Hex(str string) string {
