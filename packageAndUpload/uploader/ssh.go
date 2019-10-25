@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"test/packageAndUpload/config"
+	"go-test-2/packageAndUpload/config"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"test/packageAndUpload/config"
+	"go-test-2/packageAndUpload/config"
 
 	"github.com/qiniu/api.v7/auth/qbox"
 	"github.com/qiniu/api.v7/storage"

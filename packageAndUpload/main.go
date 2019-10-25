@@ -17,10 +17,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"test/packageAndUpload/config"
-	"test/packageAndUpload/fastwalk"
-	"test/packageAndUpload/uploader"
 	"time"
+
+	"go-test-2/packageAndUpload/config"
+	"go-test-2/packageAndUpload/fastwalk"
+	"go-test-2/packageAndUpload/uploader"
 )
 
 var step = 1
