@@ -64,7 +64,7 @@ func UploadToQN(confLocal config.ConfLocal, localFile string) {
 		Secret: confLocal.QnSecret,
 		Zone:   confLocal.QnZone,
 	}
-	key := filepath.Base(localFile)
+	key := confLocal.QnPre + filepath.Base(localFile)
 	fmt.Printf("准备处理 %s\n", localFile)
 	// 指定的进度文件保存目录，实际情况下，请确保该目录存在，而且只用于记录进度文件
 	putPolicy := storage.PutPolicy{

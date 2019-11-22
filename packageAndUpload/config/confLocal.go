@@ -15,4 +15,5 @@ type ConfLocal struct {
 	QnKey       string
 	QnSecret    string
 	QnZone      string
+	QnPre       string // 七牛上传路径的前缀
 }
